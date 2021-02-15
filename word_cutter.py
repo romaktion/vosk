@@ -7,13 +7,19 @@ import wave
 import json
 import glob
 from concurrent import futures
+import threading
 import multiprocessing
 from pydub import AudioSegment
 import ntpath
 import re
+from pathlib import Path
+
+model_path = 'model'
 
 count_txt_files = 0
 count_words = 0
+count_txt_files_lock = threading.Lock()
+count_words_lock = threading.Lock()
 
 
 def get_search_words():
@@ -35,7 +41,8 @@ def process_txt_files_list(txt_files_list, search_words):
             for search_word in search_words:
                 if search_word in file.read():
                     files_list.append(txt_file.replace(".txt", ".wav"))
-    count_txt_files += len(files_list)
+    with count_txt_files_lock:
+        count_txt_files += len(files_list)
     if len(files_list) > 0:
         process_files_list(files_list, search_words)
 
@@ -69,18 +76,19 @@ def process_files_list(files_list, search_words):
                     if search_word in word:
                         print(result)
                         print(json_obj['text'])
-                        """
                         segment = AudioSegment.from_wav(filename)
-                        segment = segment[word['start'] * 1000
-                                          :word['end'] * 1000]
-                        segment.export(ntpath.basename(filename), format="wav")
-                        """
-                        count_words += 1
+                        segment = segment[result['start'] * 1000:result['end'] * 1000]
+                        out_category_path = os.path.join('out'
+                                                         , search_word
+                                                         if word == search_word
+                                                         else os.path.join(search_word, 'raw'))
+                        Path(out_category_path).mkdir(parents=True, exist_ok=True)
+                        segment.export(os.path.join(out_category_path, ntpath.basename(filename)), format="wav")
+                        with count_words_lock:
+                            count_words += 1
 
 
 SetLogLevel(0)
-
-model_path = 'model'
 
 if not os.path.exists(model_path):
     print("Please download the model from https://alphacephei.com/vosk/models and unpack as 'model' in the current "
@@ -89,23 +97,26 @@ if not os.path.exists(model_path):
 
 walk_dir = sys.argv[1]
 
-print('walk_dir = ' + walk_dir)
-print('walk_dir (absolute) = ' + os.path.abspath(walk_dir))
+print('walk_dir = ' + os.path.abspath(walk_dir))
 
 model = Model(model_path)
 
 print('finding words...')
-cpu_amount = multiprocessing.cpu_count()
-workers_count = 0
-split_txt_files_list = split_list(list(glob.iglob(walk_dir + '**/*.txt', recursive=True))
-                                  , cpu_amount)
+all_txt_files_list = list(glob.iglob(walk_dir + '**/*.txt', recursive=True))
+cpu_amount = multiprocessing.cpu_count() \
+    if len(all_txt_files_list) >= multiprocessing.cpu_count() \
+    else len(all_txt_files_list)
+split_txt_files_list = split_list(all_txt_files_list, cpu_amount)
+print('found %d txt files for searching, start finding&cutting...' % len(all_txt_files_list))
+
 with futures.ThreadPoolExecutor(max_workers=cpu_amount) as executor:
+    workers_count = 0
     process_txt_files_list_futures = dict((executor.submit(process_txt_files_list, txt_files_list, get_search_words())
                                            , txt_files_list)
                                           for txt_files_list in split_txt_files_list)
     for future in futures.as_completed(process_txt_files_list_futures):
         if future.exception() is not None:
-            print('%r generated an exception: %s' % (future.exception()))
+            print('generated an exception: %s' % future.exception())
         else:
             workers_count += 1
             if workers_count == cpu_amount:
