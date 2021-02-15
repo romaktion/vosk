@@ -40,7 +40,12 @@ def process_txt_files_list(txt_files_list, search_words):
         with open(txt_file, 'r') as file:
             for search_word in search_words:
                 if search_word in file.read():
-                    files_list.append(txt_file.replace(".txt", ".wav"))
+                    wav_file = txt_file.replace(".txt", ".wav")
+                    opus_file = txt_file.replace(".txt", ".opus")
+                    if os.path.isfile(wav_file):
+                        files_list.append(wav_file)
+                    elif os.path.isfile(opus_file):
+                        print('This is opus, need to convert to wav!')
     with count_txt_files_lock:
         count_txt_files += len(files_list)
     if len(files_list) > 0:
