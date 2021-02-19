@@ -39,26 +39,26 @@ def process_txt_files_list(txt_files_list, search_words):
     files_list = []
     for txt_file in txt_files_list:
         with open(txt_file, 'r') as file:
+            read_file = file.read()
             for search_word in search_words:
-                if search_word in file.read():
+                if search_word in read_file:
                     wav_file = txt_file.replace(".txt", ".wav")
-                    opus_file = txt_file.replace(".txt", ".opus")
-                    if os.path.isfile(wav_file):
-                        files_list.append(wav_file)
-                    elif os.path.isfile(opus_file):
-                        process = subprocess.run(["ffmpeg", "-i", opus_file, wav_file]
-                                                 , stderr=subprocess.DEVNULL
-                                                 , stdout=subprocess.DEVNULL
-                                                 , stdin=subprocess.PIPE)
-                        if process.returncode != 0:
-                            print('Converting opus to wav failed for %s!' % opus_file)
+                    if not os.path.isfile(wav_file):
+                        opus_file = txt_file.replace(".txt", ".opus")
+                        if os.path.isfile(opus_file):
+                            process = subprocess.run(["ffmpeg", "-i", opus_file, wav_file]
+                                                     , stderr=subprocess.DEVNULL
+                                                     , stdout=subprocess.DEVNULL
+                                                     , stdin=subprocess.PIPE)
+                            if process.returncode != 0:
+                                print('Converting opus to wav failed for %s!' % opus_file)
+                                continue
                         else:
-                            files_list.append(wav_file)
-                    else:
-                        print('Audio file not found for %d or audio has unknown format!' % txt_file)
-    with count_txt_files_lock:
-        count_txt_files += len(files_list)
+                            print('Audio file not found for %d or audio has unknown format!' % txt_file)
+                            continue
+                    files_list.append(wav_file)
     if len(files_list) > 0:
+        count_txt_files += len(files_list)
         process_files_list(files_list, search_words)
 
 
@@ -83,9 +83,9 @@ def process_files_list(files_list, search_words):
         except ValueError:
             continue
 
-        field_name = 'result'
-        if field_name in json_obj:
-            for result in json_obj[field_name]:
+        result_field_name = 'result'
+        if result_field_name in json_obj:
+            for result in json_obj[result_field_name]:
                 word = result['word']
                 for search_word in search_words:
                     if search_word in word:
@@ -101,8 +101,8 @@ def process_files_list(files_list, search_words):
                         out_path = os.path.join(out_category_path, ntpath.basename(filename))
                         segment.export(out_path, format="wav")
                         if os.path.isfile(out_path):
-                            with count_words_lock:
-                                count_words += 1
+                            # with count_words_lock:
+                            count_words += 1
                         else:
                             print('Failed to cut segment for word "%s" from file %s' % (search_word, filename))
 
