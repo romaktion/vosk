@@ -13,6 +13,7 @@ from pydub import AudioSegment
 import ntpath
 import re
 from pathlib import Path
+import subprocess
 
 model_path = 'model'
 
@@ -45,7 +46,16 @@ def process_txt_files_list(txt_files_list, search_words):
                     if os.path.isfile(wav_file):
                         files_list.append(wav_file)
                     elif os.path.isfile(opus_file):
-                        print('This is opus, need to convert to wav!')
+                        process = subprocess.run(["ffmpeg", "-i", opus_file, wav_file]
+                                                 , stderr=subprocess.DEVNULL
+                                                 , stdout=subprocess.DEVNULL
+                                                 , stdin=subprocess.PIPE)
+                        if process.returncode != 0:
+                            print('Converting opus to wav failed for %s!' % opus_file)
+                        else:
+                            files_list.append(wav_file)
+                    else:
+                        print('Audio file not found for %d or audio has unknown format!' % txt_file)
     with count_txt_files_lock:
         count_txt_files += len(files_list)
     if len(files_list) > 0:
