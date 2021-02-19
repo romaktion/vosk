@@ -98,9 +98,13 @@ def process_files_list(files_list, search_words):
                                                          if word == search_word
                                                          else os.path.join(search_word, 'raw'))
                         Path(out_category_path).mkdir(parents=True, exist_ok=True)
-                        segment.export(os.path.join(out_category_path, ntpath.basename(filename)), format="wav")
-                        with count_words_lock:
-                            count_words += 1
+                        out_path = os.path.join(out_category_path, ntpath.basename(filename))
+                        segment.export(out_path, format="wav")
+                        if os.path.isfile(out_path):
+                            with count_words_lock:
+                                count_words += 1
+                        else:
+                            print('Failed to cut segment for word "%s" from file %s' % (search_word, filename))
 
 
 SetLogLevel(0)
