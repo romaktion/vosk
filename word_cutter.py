@@ -7,7 +7,6 @@ import wave
 import json
 import glob
 from concurrent import futures
-import threading
 import multiprocessing
 from pydub import AudioSegment
 import ntpath
@@ -17,10 +16,9 @@ import subprocess
 
 model_path = 'model'
 
-count_txt_files = 0
-count_words = 0
-count_txt_files_lock = threading.Lock()
-count_words_lock = threading.Lock()
+count_txt_files = {}
+count_words = {}
+count_pure_words = {}
 
 
 def get_search_words():
@@ -57,8 +55,8 @@ def process_txt_files_list(txt_files_list, search_words):
                             print('Audio file not found for %d or audio has unknown format!' % txt_file)
                             continue
                     files_list.append(wav_file)
+                    count_txt_files[search_word] += 1
     if len(files_list) > 0:
-        count_txt_files += len(files_list)
         process_files_list(files_list, search_words)
 
 
@@ -67,7 +65,7 @@ def process_files_list(files_list, search_words):
     for filename in files_list:
         wf = wave.open(filename, "rb")
         if wf.getnchannels() != 1 or wf.getsampwidth() != 2 or wf.getcomptype() != "NONE":
-            print("Audio file must be WAV format mono PCM.")
+            print("Audio file must be wav format mono PCM.")
             exit(1)
 
         rec = KaldiRecognizer(model, wf.getframerate())
@@ -89,20 +87,28 @@ def process_files_list(files_list, search_words):
                 word = result['word']
                 for search_word in search_words:
                     if search_word in word:
-                        print(result)
-                        print(json_obj['text'])
                         segment = AudioSegment.from_wav(filename)
                         segment = segment[result['start'] * 1000:result['end'] * 1000]
+                        is_pure_word = word == search_word
                         out_category_path = os.path.join('out'
                                                          , search_word
-                                                         if word == search_word
+                                                         if is_pure_word
                                                          else os.path.join(search_word, 'raw'))
                         Path(out_category_path).mkdir(parents=True, exist_ok=True)
                         out_path = os.path.join(out_category_path, ntpath.basename(filename))
+                        wav_ext = '.wav'
+                        offset = len(out_path) - len(wav_ext)
+                        out_path = out_path[:offset] + '_0' + out_path[offset:]
+                        if os.path.isfile(out_path):
+                            right = out_path.rfind(wav_ext)
+                            left = out_path[:right].rfind('_')
+                            new_num = int(out_path[(left + 1):right]) + 1
+                            out_path = out_path[:(left + 1)] + str(new_num) + out_path[right:]
                         segment.export(out_path, format="wav")
                         if os.path.isfile(out_path):
-                            # with count_words_lock:
-                            count_words += 1
+                            count_words[search_word] += 1
+                            if is_pure_word:
+                                count_pure_words[search_word] += 1
                         else:
                             print('Failed to cut segment for word "%s" from file %s' % (search_word, filename))
 
@@ -130,7 +136,12 @@ print('found %d txt files for searching, start finding&cutting...' % len(all_txt
 
 with futures.ThreadPoolExecutor(max_workers=cpu_amount) as executor:
     workers_count = 0
-    process_txt_files_list_futures = dict((executor.submit(process_txt_files_list, txt_files_list, get_search_words())
+    sw = get_search_words()
+    for w in sw:
+        count_txt_files[w] = 0
+        count_words[w] = 0
+        count_pure_words[w] = 0
+    process_txt_files_list_futures = dict((executor.submit(process_txt_files_list, txt_files_list, sw)
                                            , txt_files_list)
                                           for txt_files_list in split_txt_files_list)
     for future in futures.as_completed(process_txt_files_list_futures):
@@ -139,5 +150,9 @@ with futures.ThreadPoolExecutor(max_workers=cpu_amount) as executor:
         else:
             workers_count += 1
             if workers_count == cpu_amount:
-                print('count_txt_files = %d' % count_txt_files)
-                print('count_words = %d' % count_words)
+                for count_txt_file in count_txt_files:
+                    print('count_txt_file for %s = %d' % (count_txt_file, count_txt_files[count_txt_file]))
+                for count_word in count_words:
+                    print('count_words for %s = %d' % (count_word, count_words[count_word]))
+                for count_pure_word in count_pure_words:
+                    print('count_pure_words for %s = %d' % (count_pure_word, count_pure_words[count_pure_word]))
