@@ -99,7 +99,7 @@ def process_files_list(files_list, search_words):
                         wav_ext = '.wav'
                         offset = len(out_path) - len(wav_ext)
                         out_path = out_path[:offset] + '_0' + out_path[offset:]
-                        if os.path.isfile(out_path):
+                        while os.path.isfile(out_path):
                             right = out_path.rfind(wav_ext)
                             left = out_path[:right].rfind('_')
                             new_num = int(out_path[(left + 1):right]) + 1
