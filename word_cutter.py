@@ -88,8 +88,16 @@ def process_files_list(files_list, search_words):
                 for search_word in search_words:
                     if search_word in word:
                         segment = AudioSegment.from_wav(filename)
-                        segment = segment[result['start'] * 1000:result['end'] * 1000]
                         is_pure_word = word == search_word
+                        start = result['start']
+                        end = result['end']
+                        if not is_pure_word:
+                            found = str(word).find(search_word)
+                            time_per_symbol = 0.075
+                            start += found * time_per_symbol
+                            end -= (len(word) - found + len(search_word)) * time_per_symbol
+                            is_pure_word = True
+                        segment = segment[start * 1000:end * 1000]
                         out_category_path = os.path.join('out'
                                                          , search_word
                                                          if is_pure_word
