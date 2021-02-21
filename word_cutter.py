@@ -108,7 +108,7 @@ def process_files_list(files_list, search_words):
                     start = result['start']
                     end = result['end']
                     duration = end - start
-                    if duration < search_word[search_word]:
+                    if duration < search_words[search_word]:
                         continue
                     if search_word in word:
                         segment = AudioSegment.from_wav(filename)
