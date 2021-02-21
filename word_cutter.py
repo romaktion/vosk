@@ -19,6 +19,7 @@ import ntpath
 import re
 from pathlib import Path
 import subprocess
+import shutil
 
 model_path = 'model'
 out_folder = os.path.abspath('speech_dataset')
@@ -171,6 +172,7 @@ cpu_amount = multiprocessing.cpu_count() \
 split_txt_files_list = split_list(all_txt_files_list, cpu_amount)
 
 print('found %d txt files for searching, start finding&cutting...' % len(all_txt_files_list))
+shutil.rmtree(out_folder, ignore_errors=True)
 Path(out_folder).mkdir(parents=True, exist_ok=True)
 testing_list_file = open(os.path.join(out_folder, testing_list_file_name), 'w')
 validation_list_file = open(os.path.join(out_folder, validation_list_file_name), 'w')
