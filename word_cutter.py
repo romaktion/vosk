@@ -1,3 +1,9 @@
+# Author: romaktion@gmail.com
+
+# word_cuter.py designed for cutting certain words from audio dataset needed to build model for key word spotting
+# using tensorflow:  https://github.com/tensorflow/tensorflow/blob/master/tensorflow/examples/speech_commands/train.py
+
+
 #!/usr/bin/env python3
 
 from vosk import Model, KaldiRecognizer, SetLogLevel
