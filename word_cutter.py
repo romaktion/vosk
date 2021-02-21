@@ -15,10 +15,13 @@ from pathlib import Path
 import subprocess
 
 model_path = 'model'
+out_folder = 'speech_dataset'
 
 count_txt_files = {}
 count_words = {}
 count_pure_words = {}
+testing_list_file_name = 'testing_list.txt'
+validation_list_file_name = 'validation_list.txt'
 
 
 def get_search_words():
@@ -96,11 +99,10 @@ def process_files_list(files_list, search_words):
                             time_per_symbol = 0.075
                             start += found * time_per_symbol
                             end -= (len(word) - (found + len(search_word))) * time_per_symbol
-                            is_pure_word = True
                         segment = segment[start * 1000:end * 1000]
-                        out_category_path = os.path.join('out'
+                        out_category_path = os.path.join(out_folder
                                                          , search_word
-                                                         if is_pure_word
+                                                         if True  # is_pure_word
                                                          else os.path.join(search_word, 'raw'))
                         Path(out_category_path).mkdir(parents=True, exist_ok=True)
                         out_path = os.path.join(out_category_path, ntpath.basename(filename))
@@ -114,6 +116,8 @@ def process_files_list(files_list, search_words):
                             out_path = out_path[:(left + 1)] + str(new_num) + out_path[right:]
                         segment.export(out_path, format="wav")
                         if os.path.isfile(out_path):
+                            (validation_list_file if is_pure_word else testing_list_file)\
+                                .write(search_word + '/' + ntpath.basename(out_path) + '\n')
                             count_words[search_word] += 1
                             if is_pure_word:
                                 count_pure_words[search_word] += 1
@@ -140,8 +144,10 @@ cpu_amount = multiprocessing.cpu_count() \
     if len(all_txt_files_list) >= multiprocessing.cpu_count() \
     else len(all_txt_files_list)
 split_txt_files_list = split_list(all_txt_files_list, cpu_amount)
-print('found %d txt files for searching, start finding&cutting...' % len(all_txt_files_list))
 
+print('found %d txt files for searching, start finding&cutting...' % len(all_txt_files_list))
+testing_list_file = open(os.path.join(out_folder, testing_list_file_name))
+validation_list_file = open(os.path.join(out_folder, validation_list_file_name))
 with futures.ThreadPoolExecutor(max_workers=cpu_amount) as executor:
     workers_count = 0
     sw = get_search_words()
@@ -158,6 +164,8 @@ with futures.ThreadPoolExecutor(max_workers=cpu_amount) as executor:
         else:
             workers_count += 1
             if workers_count == cpu_amount:
+                validation_list_file.close()
+                testing_list_file.close()
                 for count_txt_file in count_txt_files:
                     print('count_txt_file for %s = %d' % (count_txt_file, count_txt_files[count_txt_file]))
                 for count_word in count_words:
