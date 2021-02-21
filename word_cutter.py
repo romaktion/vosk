@@ -15,18 +15,34 @@ from pathlib import Path
 import subprocess
 
 model_path = 'model'
-out_folder = 'speech_dataset'
+out_folder = os.path.abspath('speech_dataset')
+testing_list_file_name = 'testing_list.txt'
+validation_list_file_name = 'validation_list.txt'
 
 count_txt_files = {}
 count_words = {}
 count_pure_words = {}
-testing_list_file_name = 'testing_list.txt'
-validation_list_file_name = 'validation_list.txt'
+
+
+def map_range(value, left_min, left_max, right_min, right_max):
+    # Figure out how 'wide' each range is
+    left_span = left_max - left_min
+    right_span = right_max - right_min
+
+    # Convert the left range into a 0-1 range (float)
+    value_scaled = float(value - left_min) / float(left_span)
+
+    # Convert the 0-1 range into a value in the right range.
+    return right_min + (value_scaled * right_span)
 
 
 def get_search_words():
     with open("search_words.txt", 'r') as search_words_file:
-        return re.sub(r"[\n\t\s]*", "", search_words_file.read()).split(",")
+        ret = {}
+        for word in re.sub(r"[\n\t\s]*", "", search_words_file.read()).split(","):
+            split = word.split('=')
+            ret[str(split[0])] = float(split[1])
+        return ret
 
 
 def split_list(a_list, wanted_parts=1):
@@ -89,14 +105,17 @@ def process_files_list(files_list, search_words):
             for result in json_obj[result_field_name]:
                 word = result['word']
                 for search_word in search_words:
+                    start = result['start']
+                    end = result['end']
+                    duration = end - start
+                    if duration < search_word[search_word]:
+                        continue
                     if search_word in word:
                         segment = AudioSegment.from_wav(filename)
                         is_pure_word = word == search_word
-                        start = result['start']
-                        end = result['end']
                         if not is_pure_word:
                             found = str(word).find(search_word)
-                            time_per_symbol = 0.075
+                            time_per_symbol = map_range(duration / len(word), 0.05, 0.1798333333333333, 0.05, 0.25)
                             start += found * time_per_symbol
                             end -= (len(word) - (found + len(search_word))) * time_per_symbol
                         segment = segment[start * 1000:end * 1000]
@@ -146,8 +165,9 @@ cpu_amount = multiprocessing.cpu_count() \
 split_txt_files_list = split_list(all_txt_files_list, cpu_amount)
 
 print('found %d txt files for searching, start finding&cutting...' % len(all_txt_files_list))
-testing_list_file = open(os.path.join(out_folder, testing_list_file_name))
-validation_list_file = open(os.path.join(out_folder, validation_list_file_name))
+Path(out_folder).mkdir(parents=True, exist_ok=True)
+testing_list_file = open(os.path.join(out_folder, testing_list_file_name), 'w')
+validation_list_file = open(os.path.join(out_folder, validation_list_file_name), 'w')
 with futures.ThreadPoolExecutor(max_workers=cpu_amount) as executor:
     workers_count = 0
     sw = get_search_words()
