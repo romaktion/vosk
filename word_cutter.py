@@ -95,7 +95,7 @@ def process_files_list(files_list, search_words):
                             found = str(word).find(search_word)
                             time_per_symbol = 0.075
                             start += found * time_per_symbol
-                            end -= (len(word) - found + len(search_word)) * time_per_symbol
+                            end -= (len(word) - (found + len(search_word))) * time_per_symbol
                             is_pure_word = True
                         segment = segment[start * 1000:end * 1000]
                         out_category_path = os.path.join('out'
