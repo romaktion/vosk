@@ -26,6 +26,12 @@ out_folder = os.path.abspath('speech_dataset')
 testing_list_file_name = 'testing_list.txt'
 validation_list_file_name = 'validation_list.txt'
 
+# linear interpolation between these values (needed for detect extra word durations)
+min_in_audio_duration_per_word = 0.05
+max_in_audio_duration_per_word = 0.1798333333333333
+min_out_audio_duration_per_word = 0.05
+max_out_audio_duration_per_word = 0.25
+
 count_audio_files = {}
 count_words = {}
 count_raw_words = {}
@@ -126,7 +132,11 @@ def process_files_list(files_list, search_words):
                         is_pure_word = word == search_word
                         if not is_pure_word:
                             found = str(word).find(search_word)
-                            time_per_symbol = map_range(duration / len(word), 0.05, 0.1798333333333333, 0.05, 0.25)
+                            time_per_symbol = map_range(duration / len(word)
+                                                        , min_in_audio_duration_per_word
+                                                        , max_in_audio_duration_per_word
+                                                        , min_out_audio_duration_per_word
+                                                        , max_out_audio_duration_per_word)
                             start += found * time_per_symbol
                             end -= (len(word) - (found + len(search_word))) * time_per_symbol
                         segment = segment[start * 1000:end * 1000]
