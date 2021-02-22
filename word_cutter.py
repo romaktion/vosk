@@ -35,11 +35,14 @@ max_out_audio_duration_per_word = 0.25
 process_txt_files_threshold = 100000
 process_audio_files_threshold = 100
 
+debug_raw_words = True
+
 count_audio_files = {}
 count_words = {}
 count_raw_words = {}
 count_pure_words = {}
 found_files_list = []
+inappropriate_words = {}
 
 
 def map_range(value, left_min, left_max, right_min, right_max):
@@ -114,6 +117,8 @@ def process_files_list(files_list, search_words):
     global count_all_audio_files
     global last_count_all_audio_files
     global process_audio_files_threshold
+    global inappropriate_words
+    global debug_raw_words
     for filename in files_list:
         count_all_audio_files += 1
         if (count_all_audio_files - last_count_all_audio_files) > (process_audio_files_threshold - 1):
@@ -143,15 +148,15 @@ def process_files_list(files_list, search_words):
             for result in json_obj[result_field_name]:
                 word = result['word']
                 for search_word in search_words:
-                    start = result['start']
-                    end = result['end']
-                    symbol_duration = (end - start) / len(word)
-                    if symbol_duration < search_words[search_word]:
-                        continue
                     if search_word in word:
-                        segment = AudioSegment.from_wav(filename)
+                        start = result['start']
+                        end = result['end']
+                        symbol_duration = (end - start) / len(word)
                         is_pure_word = word == search_word
                         if not is_pure_word:
+                            if symbol_duration < search_words[search_word]:
+                                inappropriate_words[search_word] += 1
+                                continue
                             found = str(word).find(search_word)
                             time_per_symbol = map_range(symbol_duration / len(word)
                                                         , min_in_audio_duration_per_word
@@ -160,11 +165,12 @@ def process_files_list(files_list, search_words):
                                                         , max_out_audio_duration_per_word)
                             start += found * time_per_symbol
                             end -= (len(word) - (found + len(search_word))) * time_per_symbol
+                        if (end - start) < symbol_duration * len(search_word):
+                            inappropriate_words[search_word] += 1
+                            continue
+                        segment = AudioSegment.from_wav(filename)
                         segment = segment[start * 1000:end * 1000]
-                        out_category_path = os.path.join(out_folder
-                                                         , search_word
-                                                         if True  # is_pure_word
-                                                         else os.path.join(search_word, 'raw'))
+                        out_category_path = os.path.join(out_folder, search_word)
                         Path(out_category_path).mkdir(parents=True, exist_ok=True)
                         out_path = os.path.join(out_category_path, ntpath.basename(filename))
                         wav_ext = '.wav'
@@ -185,6 +191,11 @@ def process_files_list(files_list, search_words):
                             else:
                                 count_raw_words[search_word] += 1
                                 testing_list_file.write(text_to_write)
+                                if debug_raw_words:
+                                    out_category_path = os.path.join(out_folder, os.path.join(search_word, 'raw'))
+                                    Path(out_category_path).mkdir(parents=True, exist_ok=True)
+                                    shutil.copyfile(out_path
+                                                    , os.path.join(out_category_path, ntpath.basename(out_path)))
                         else:
                             print('Failed to cut segment for word "%s" from file %s' % (search_word, filename))
 
@@ -222,6 +233,7 @@ with futures.ThreadPoolExecutor(max_workers=cpu_amount) as executor:
         count_words[w] = 0
         count_raw_words[w] = 0
         count_pure_words[w] = 0
+        inappropriate_words[w] = 0
     print('collecting and prepare audio files...')
     last_count_all_txt_files = 0
     count_all_txt_files = 0
@@ -266,6 +278,9 @@ with futures.ThreadPoolExecutor(max_workers=cpu_amount) as executor:
                                 for count_pure_word in count_pure_words:
                                     print('count_pure_words for %s = %d' % (
                                         count_pure_word, count_pure_words[count_pure_word]))
+                                for inappropriate_word in inappropriate_words:
+                                    print('inappropriate_words for %s = %d' % (
+                                        inappropriate_word, inappropriate_words[inappropriate_word]))
                                 print('all done!')
                 else:
                     print('audio files not found!')
