@@ -145,15 +145,15 @@ def process_files_list(files_list, search_words):
                 for search_word in search_words:
                     start = result['start']
                     end = result['end']
-                    duration = end - start
-                    if duration < search_words[search_word]:
+                    symbol_duration = (end - start) / len(word)
+                    if symbol_duration < search_words[search_word]:
                         continue
                     if search_word in word:
                         segment = AudioSegment.from_wav(filename)
                         is_pure_word = word == search_word
                         if not is_pure_word:
                             found = str(word).find(search_word)
-                            time_per_symbol = map_range(duration / len(word)
+                            time_per_symbol = map_range(symbol_duration / len(word)
                                                         , min_in_audio_duration_per_word
                                                         , max_in_audio_duration_per_word
                                                         , min_out_audio_duration_per_word
