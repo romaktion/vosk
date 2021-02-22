@@ -32,8 +32,8 @@ max_in_audio_duration_per_word = 0.1798333333333333
 min_out_audio_duration_per_word = 0.05
 max_out_audio_duration_per_word = 0.25
 
-process_txt_files_threshold = 99999
-process_audio_files_threshold = 99
+process_txt_files_threshold = 100000
+process_audio_files_threshold = 100
 
 count_audio_files = {}
 count_words = {}
@@ -78,7 +78,7 @@ def process_txt_files_list(txt_files_list, search_words):
     global process_txt_files_threshold
     for txt_file in txt_files_list:
         count_all_txt_files += 1
-        if (count_all_txt_files - last_count_all_txt_files) > process_txt_files_threshold:
+        if (count_all_txt_files - last_count_all_txt_files) > (process_txt_files_threshold - 1):
             last_count_all_txt_files = count_all_txt_files
             print('%d txt files processed, %d files left...' % (last_count_all_txt_files
                                                                 , len(all_txt_files_list) - last_count_all_txt_files))
@@ -116,7 +116,7 @@ def process_files_list(files_list, search_words):
     global process_audio_files_threshold
     for filename in files_list:
         count_all_audio_files += 1
-        if (count_all_audio_files - last_count_all_audio_files) > process_audio_files_threshold:
+        if (count_all_audio_files - last_count_all_audio_files) > (process_audio_files_threshold - 1):
             last_count_all_audio_files = count_all_audio_files
             print('%d audio files processed, %d files left...' % (last_count_all_audio_files
                                                                   , amount_all_audio_files - last_count_all_audio_files))
