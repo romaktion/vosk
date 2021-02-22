@@ -32,6 +32,9 @@ max_in_audio_duration_per_word = 0.1798333333333333
 min_out_audio_duration_per_word = 0.05
 max_out_audio_duration_per_word = 0.25
 
+process_txt_files_threshold = 99999
+process_audio_files_threshold = 99
+
 count_audio_files = {}
 count_words = {}
 count_raw_words = {}
@@ -69,7 +72,16 @@ def split_list(a_list, wanted_parts=1):
 def process_txt_files_list(txt_files_list, search_words):
     global count_audio_files
     global found_files_list
+    global last_count_all_txt_files
+    global count_all_txt_files
+    global all_txt_files_list
+    global process_txt_files_threshold
     for txt_file in txt_files_list:
+        count_all_txt_files += 1
+        if (count_all_txt_files - last_count_all_txt_files) > process_txt_files_threshold:
+            last_count_all_txt_files = count_all_txt_files
+            print('%d txt files processed, %d files left...' % (last_count_all_txt_files
+                                                                , len(all_txt_files_list) - last_count_all_txt_files))
         with open(txt_file, 'r') as file:
             read_file = file.read()
             for search_word in search_words:
@@ -101,14 +113,13 @@ def process_files_list(files_list, search_words):
     global amount_all_audio_files
     global count_all_audio_files
     global last_count_all_audio_files
+    global process_audio_files_threshold
     for filename in files_list:
         count_all_audio_files += 1
-        if (count_all_audio_files - last_count_all_audio_files) > 99:
+        if (count_all_audio_files - last_count_all_audio_files) > process_audio_files_threshold:
             last_count_all_audio_files = count_all_audio_files
             print('%d audio files processed, %d files left...' % (last_count_all_audio_files
-                                                                  ,
-                                                                  amount_all_audio_files - last_count_all_audio_files))
-
+                                                                  , amount_all_audio_files - last_count_all_audio_files))
         wf = wave.open(filename, "rb")
         if wf.getnchannels() != 1 or wf.getsampwidth() != 2 or wf.getcomptype() != "NONE":
             print("Audio file must be wav format mono PCM.")
@@ -212,6 +223,8 @@ with futures.ThreadPoolExecutor(max_workers=cpu_amount) as executor:
         count_raw_words[w] = 0
         count_pure_words[w] = 0
     print('collecting and prepare audio files...')
+    last_count_all_txt_files = 0
+    count_all_txt_files = 0
     process_txt_files_list_futures = dict((executor.submit(process_txt_files_list, txt_files_list, sw)
                                            , txt_files_list)
                                           for txt_files_list in split_txt_files_list)
