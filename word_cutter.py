@@ -98,7 +98,17 @@ def process_files_list(files_list, search_words):
     global count_pure_words
     global testing_list_file
     global validation_list_file
+    global amount_all_audio_files
+    global count_all_audio_files
+    global last_count_all_audio_files
     for filename in files_list:
+        count_all_audio_files += 1
+        if (count_all_audio_files - last_count_all_audio_files) > 99:
+            last_count_all_audio_files = count_all_audio_files
+            print('%d audio files processed, %d files left...' % (last_count_all_audio_files
+                                                                  ,
+                                                                  amount_all_audio_files - last_count_all_audio_files))
+
         wf = wave.open(filename, "rb")
         if wf.getnchannels() != 1 or wf.getsampwidth() != 2 or wf.getcomptype() != "NONE":
             print("Audio file must be wav format mono PCM.")
@@ -214,10 +224,14 @@ with futures.ThreadPoolExecutor(max_workers=cpu_amount) as executor:
                 if len(found_files_list) > 0:
                     split_found_files_list = split_list(found_files_list, cpu_amount)
                     workers_count = 0
+                    amount_all_audio_files = 0
+                    last_count_all_audio_files = 0
+                    count_all_audio_files = 0
                     print('audio files prepared')
                     for audio_file in count_audio_files:
                         print('count_audio_files for %s = %d' % (
                             audio_file, count_audio_files[audio_file]))
+                        amount_all_audio_files += count_audio_files[audio_file]
                     print('cutting words from audio files...')
                     process_files_list_futures = dict((executor.submit(process_files_list, found_files_list, sw)
                                                        , found_files_list)
