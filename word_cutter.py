@@ -26,7 +26,7 @@ out_folder = os.path.abspath('speech_dataset')
 testing_list_file_name = 'testing_list.txt'
 validation_list_file_name = 'validation_list.txt'
 
-count_txt_files = {}
+count_audio_files = {}
 count_words = {}
 count_raw_words = {}
 count_pure_words = {}
@@ -61,7 +61,7 @@ def split_list(a_list, wanted_parts=1):
 
 
 def process_txt_files_list(txt_files_list, search_words):
-    global count_txt_files
+    global count_audio_files
     global found_files_list
     for txt_file in txt_files_list:
         with open(txt_file, 'r') as file:
@@ -83,7 +83,7 @@ def process_txt_files_list(txt_files_list, search_words):
                             print('Audio file not found for %d or audio has unknown format!' % txt_file)
                             continue
                     found_files_list.append(wav_file)
-                    count_txt_files[search_word] += 1
+                    count_audio_files[search_word] += 1
 
 
 def process_files_list(files_list, search_words):
@@ -171,14 +171,14 @@ print('walk_dir = ' + os.path.abspath(walk_dir))
 
 model = Model(model_path)
 
-print('finding words...')
+print('txt files collecting...')
 all_txt_files_list = list(glob.iglob(walk_dir + '**/*.txt', recursive=True))
 cpu_amount = multiprocessing.cpu_count() \
     if len(all_txt_files_list) >= multiprocessing.cpu_count() \
     else len(all_txt_files_list)
 split_txt_files_list = split_list(all_txt_files_list, cpu_amount)
 
-print('found %d txt files for searching, start finding&cutting...' % len(all_txt_files_list))
+print('found %d txt files for searching' % len(all_txt_files_list))
 shutil.rmtree(out_folder, ignore_errors=True)
 Path(out_folder).mkdir(parents=True, exist_ok=True)
 testing_list_file = open(os.path.join(out_folder, testing_list_file_name), 'w')
@@ -187,10 +187,11 @@ with futures.ThreadPoolExecutor(max_workers=cpu_amount) as executor:
     workers_count = 0
     sw = get_search_words()
     for w in sw:
-        count_txt_files[w] = 0
+        count_audio_files[w] = 0
         count_words[w] = 0
         count_raw_words[w] = 0
         count_pure_words[w] = 0
+    print('collecting and prepare audio files...')
     process_txt_files_list_futures = dict((executor.submit(process_txt_files_list, txt_files_list, sw)
                                            , txt_files_list)
                                           for txt_files_list in split_txt_files_list)
@@ -203,6 +204,11 @@ with futures.ThreadPoolExecutor(max_workers=cpu_amount) as executor:
                 if len(found_files_list) > 0:
                     split_found_files_list = split_list(found_files_list, cpu_amount)
                     workers_count = 0
+                    print('audio files prepared')
+                    for audio_file in count_audio_files:
+                        print('count_audio_files for %s = %d' % (
+                            audio_file, count_audio_files[audio_file]))
+                    print('cutting words from audio files...')
                     process_files_list_futures = dict((executor.submit(process_files_list, found_files_list, sw)
                                                        , found_files_list)
                                                       for found_files_list in split_found_files_list)
@@ -214,15 +220,15 @@ with futures.ThreadPoolExecutor(max_workers=cpu_amount) as executor:
                             if workers_count == cpu_amount:
                                 validation_list_file.close()
                                 testing_list_file.close()
-                                for count_txt_file in count_txt_files:
-                                    print('count_txt_file for %s = %d' % (
-                                        count_txt_file, count_txt_files[count_txt_file]))
                                 for count_word in count_words:
                                     print('count_words for %s = %d' % (
                                         count_word, count_words[count_word]))
                                 for count_raw_word in count_raw_words:
-                                    print('count_words for %s = %d' % (
+                                    print('count_raw_words for %s = %d' % (
                                         count_raw_word, count_raw_words[count_raw_word]))
                                 for count_pure_word in count_pure_words:
                                     print('count_pure_words for %s = %d' % (
                                         count_pure_word, count_pure_words[count_pure_word]))
+                                print('all done!')
+                else:
+                    print('audio files not found!')
