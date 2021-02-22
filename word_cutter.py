@@ -20,6 +20,7 @@ import re
 from pathlib import Path
 import subprocess
 import shutil
+import datetime
 
 model_path = 'model'
 out_folder = os.path.abspath('speech_dataset')
@@ -207,9 +208,11 @@ if not os.path.exists(model_path):
           "folder.")
     exit(1)
 
+start_time = datetime.datetime.now()
 walk_dir = sys.argv[1]
 
-print('walk_dir = ' + os.path.abspath(walk_dir))
+print('start time: ' + str(start_time))
+print('walk_dir: ' + os.path.abspath(walk_dir))
 
 model = Model(model_path)
 
@@ -281,6 +284,10 @@ with futures.ThreadPoolExecutor(max_workers=cpu_amount) as executor:
                                 for inappropriate_word in inappropriate_words:
                                     print('inappropriate_words for %s = %d' % (
                                         inappropriate_word, inappropriate_words[inappropriate_word]))
-                                print('all done!')
+                                end_time = datetime.datetime.now()
+                                print('end time: ' + str(end_time))
+                                print('all done in %d minutes %d seconds!'
+                                      % ((end_time.minute - start_time.minute)
+                                         , end_time.second - start_time.second))
                 else:
                     print('audio files not found!')
