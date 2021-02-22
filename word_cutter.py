@@ -28,7 +28,9 @@ validation_list_file_name = 'validation_list.txt'
 
 count_txt_files = {}
 count_words = {}
+count_raw_words = {}
 count_pure_words = {}
+found_files_list = []
 
 
 def map_range(value, left_min, left_max, right_min, right_max):
@@ -60,7 +62,7 @@ def split_list(a_list, wanted_parts=1):
 
 def process_txt_files_list(txt_files_list, search_words):
     global count_txt_files
-    files_list = []
+    global found_files_list
     for txt_file in txt_files_list:
         with open(txt_file, 'r') as file:
             read_file = file.read()
@@ -80,14 +82,16 @@ def process_txt_files_list(txt_files_list, search_words):
                         else:
                             print('Audio file not found for %d or audio has unknown format!' % txt_file)
                             continue
-                    files_list.append(wav_file)
+                    found_files_list.append(wav_file)
                     count_txt_files[search_word] += 1
-    if len(files_list) > 0:
-        process_files_list(files_list, search_words)
 
 
 def process_files_list(files_list, search_words):
     global count_words
+    global count_raw_words
+    global count_pure_words
+    global testing_list_file
+    global validation_list_file
     for filename in files_list:
         wf = wave.open(filename, "rb")
         if wf.getnchannels() != 1 or wf.getsampwidth() != 2 or wf.getcomptype() != "NONE":
@@ -142,11 +146,14 @@ def process_files_list(files_list, search_words):
                             out_path = out_path[:(left + 1)] + str(new_num) + out_path[right:]
                         segment.export(out_path, format="wav")
                         if os.path.isfile(out_path):
-                            (validation_list_file if is_pure_word else testing_list_file)\
-                                .write(search_word + '/' + ntpath.basename(out_path) + '\n')
+                            text_to_write = search_word + '/' + ntpath.basename(out_path) + '\n'
                             count_words[search_word] += 1
                             if is_pure_word:
                                 count_pure_words[search_word] += 1
+                                validation_list_file.write(text_to_write)
+                            else:
+                                count_raw_words[search_word] += 1
+                                testing_list_file.write(text_to_write)
                         else:
                             print('Failed to cut segment for word "%s" from file %s' % (search_word, filename))
 
@@ -182,21 +189,40 @@ with futures.ThreadPoolExecutor(max_workers=cpu_amount) as executor:
     for w in sw:
         count_txt_files[w] = 0
         count_words[w] = 0
+        count_raw_words[w] = 0
         count_pure_words[w] = 0
     process_txt_files_list_futures = dict((executor.submit(process_txt_files_list, txt_files_list, sw)
                                            , txt_files_list)
                                           for txt_files_list in split_txt_files_list)
-    for future in futures.as_completed(process_txt_files_list_futures):
-        if future.exception() is not None:
-            print('generated an exception: %s' % future.exception())
+    for process_txt_files_list_future in futures.as_completed(process_txt_files_list_futures):
+        if process_txt_files_list_future.exception() is not None:
+            print('generated an exception: %s' % process_txt_files_list_future.exception())
         else:
             workers_count += 1
             if workers_count == cpu_amount:
-                validation_list_file.close()
-                testing_list_file.close()
-                for count_txt_file in count_txt_files:
-                    print('count_txt_file for %s = %d' % (count_txt_file, count_txt_files[count_txt_file]))
-                for count_word in count_words:
-                    print('count_words for %s = %d' % (count_word, count_words[count_word]))
-                for count_pure_word in count_pure_words:
-                    print('count_pure_words for %s = %d' % (count_pure_word, count_pure_words[count_pure_word]))
+                if len(found_files_list) > 0:
+                    split_found_files_list = split_list(found_files_list, cpu_amount)
+                    workers_count = 0
+                    process_files_list_futures = dict((executor.submit(process_files_list, found_files_list, sw)
+                                                       , found_files_list)
+                                                      for found_files_list in split_found_files_list)
+                    for process_files_list_future in process_files_list_futures:
+                        if process_files_list_future.exception() is not None:
+                            print('generated an exception: %s' % process_files_list_future.exception())
+                        else:
+                            workers_count += 1
+                            if workers_count == cpu_amount:
+                                validation_list_file.close()
+                                testing_list_file.close()
+                                for count_txt_file in count_txt_files:
+                                    print('count_txt_file for %s = %d' % (
+                                        count_txt_file, count_txt_files[count_txt_file]))
+                                for count_word in count_words:
+                                    print('count_words for %s = %d' % (
+                                        count_word, count_words[count_word]))
+                                for count_raw_word in count_raw_words:
+                                    print('count_words for %s = %d' % (
+                                        count_raw_word, count_raw_words[count_raw_word]))
+                                for count_pure_word in count_pure_words:
+                                    print('count_pure_words for %s = %d' % (
+                                        count_pure_word, count_pure_words[count_pure_word]))
