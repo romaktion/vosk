@@ -39,6 +39,9 @@ count_pure_words = {}
 found_files_list = []
 inappropriate_words = {}
 
+testing_texts_to_write = {}
+validation_texts_to_write = {}
+
 
 def get_search_words():
     with open("search_words.txt", 'r') as search_words_file:
@@ -94,8 +97,8 @@ def process_files_list(files_list, search_words):
     global count_words
     global count_raw_words
     global count_pure_words
-    global testing_list_file
-    global validation_list_file
+    global testing_texts_to_write
+    global validation_texts_to_write
     global amount_all_audio_files
     global count_all_audio_files
     global last_count_all_audio_files
@@ -164,10 +167,10 @@ def process_files_list(files_list, search_words):
                             count_words[search_word] += 1
                             if is_pure_word:
                                 count_pure_words[search_word] += 1
-                                validation_list_file.write(text_to_write)
+                                validation_texts_to_write[search_word].append(text_to_write)
                             else:
                                 count_raw_words[search_word] += 1
-                                testing_list_file.write(text_to_write)
+                                testing_texts_to_write[search_word].append(text_to_write)
                                 if debug_raw_words:
                                     segment = AudioSegment.from_wav(filename)
                                     segment = segment[saved_start * 1000:saved_end * 1000]
@@ -202,10 +205,6 @@ cpu_amount = multiprocessing.cpu_count() \
 split_txt_files_list = split_list(all_txt_files_list, cpu_amount)
 
 print('found %d txt files for searching' % len(all_txt_files_list))
-shutil.rmtree(out_folder, ignore_errors=True)
-Path(out_folder).mkdir(parents=True, exist_ok=True)
-testing_list_file = open(os.path.join(out_folder, testing_list_file_name), 'w')
-validation_list_file = open(os.path.join(out_folder, validation_list_file_name), 'w')
 with futures.ThreadPoolExecutor(max_workers=cpu_amount) as executor:
     workers_count = 0
     sw = get_search_words()
@@ -215,6 +214,8 @@ with futures.ThreadPoolExecutor(max_workers=cpu_amount) as executor:
         count_raw_words[w] = 0
         count_pure_words[w] = 0
         inappropriate_words[w] = 0
+        testing_texts_to_write[w] = []
+        validation_texts_to_write[w] = []
     print('collecting and prepare audio files...')
     last_count_all_txt_files = 0
     count_all_txt_files = 0
@@ -248,8 +249,18 @@ with futures.ThreadPoolExecutor(max_workers=cpu_amount) as executor:
                         else:
                             workers_count += 1
                             if workers_count == cpu_amount:
-                                validation_list_file.close()
+                                shutil.rmtree(out_folder, ignore_errors=True)
+                                Path(out_folder).mkdir(parents=True, exist_ok=True)
+                                testing_list_file = open(os.path.join(out_folder, testing_list_file_name), 'w')
+                                validation_list_file = open(os.path.join(out_folder, validation_list_file_name), 'w')
+                                for testing_texts_to_write_list in testing_texts_to_write:
+                                    for testing_text_to_write in testing_texts_to_write[testing_texts_to_write_list]:
+                                        testing_list_file.write(testing_text_to_write)
+                                for validation_texts_to_write_list in validation_texts_to_write:
+                                    for validation_text_to_write in validation_texts_to_write[validation_texts_to_write_list]:
+                                        validation_list_file.write(validation_text_to_write)
                                 testing_list_file.close()
+                                validation_list_file.close()
                                 for count_word in count_words:
                                     print('count_words for %s = %d' % (
                                         count_word, count_words[count_word]))
@@ -264,8 +275,8 @@ with futures.ThreadPoolExecutor(max_workers=cpu_amount) as executor:
                                         inappropriate_word, inappropriate_words[inappropriate_word]))
                                 end_time = datetime.datetime.now()
                                 print('end time: ' + str(end_time))
+                                delta = end_time - start_time
                                 print('all done in %d minutes %d seconds!'
-                                      % ((end_time.minute - start_time.minute)
-                                         , end_time.second - start_time.second))
+                                      % (int(delta.seconds / 60), delta.seconds))
                 else:
                     print('audio files not found!')
