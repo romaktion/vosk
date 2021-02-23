@@ -205,6 +205,7 @@ cpu_amount = multiprocessing.cpu_count() \
 split_txt_files_list = split_list(all_txt_files_list, cpu_amount)
 
 print('found %d txt files for searching' % len(all_txt_files_list))
+shutil.rmtree(out_folder, ignore_errors=True)
 with futures.ThreadPoolExecutor(max_workers=cpu_amount) as executor:
     workers_count = 0
     sw = get_search_words()
@@ -249,7 +250,6 @@ with futures.ThreadPoolExecutor(max_workers=cpu_amount) as executor:
                         else:
                             workers_count += 1
                             if workers_count == cpu_amount:
-                                shutil.rmtree(out_folder, ignore_errors=True)
                                 Path(out_folder).mkdir(parents=True, exist_ok=True)
                                 testing_list_file = open(os.path.join(out_folder, testing_list_file_name), 'w')
                                 validation_list_file = open(os.path.join(out_folder, validation_list_file_name), 'w')
