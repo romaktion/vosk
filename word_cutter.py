@@ -27,12 +27,6 @@ out_folder = os.path.abspath('speech_dataset')
 testing_list_file_name = 'testing_list.txt'
 validation_list_file_name = 'validation_list.txt'
 
-# linear interpolation between these values (needed for detect extra word durations)
-min_in_audio_duration_per_word = 0.05
-max_in_audio_duration_per_word = 0.1798333333333333
-min_out_audio_duration_per_word = 0.05
-max_out_audio_duration_per_word = 0.25
-
 process_txt_files_threshold = 100000
 process_audio_files_threshold = 100
 
@@ -44,18 +38,6 @@ count_raw_words = {}
 count_pure_words = {}
 found_files_list = []
 inappropriate_words = {}
-
-
-def map_range(value, left_min, left_max, right_min, right_max):
-    # Figure out how 'wide' each range is
-    left_span = left_max - left_min
-    right_span = right_max - right_min
-
-    # Convert the left range into a 0-1 range (float)
-    value_scaled = float(value - left_min) / float(left_span)
-
-    # Convert the 0-1 range into a value in the right range.
-    return right_min + (value_scaled * right_span)
 
 
 def get_search_words():
@@ -152,6 +134,8 @@ def process_files_list(files_list, search_words):
                     if search_word in word:
                         start = result['start']
                         end = result['end']
+                        saved_start = start
+                        saved_end = end
                         symbol_duration = (end - start) / len(word)
                         is_pure_word = word == search_word
                         if not is_pure_word:
@@ -159,16 +143,8 @@ def process_files_list(files_list, search_words):
                                 inappropriate_words[search_word] += 1
                                 continue
                             found = str(word).find(search_word)
-                            time_per_symbol = map_range(symbol_duration / len(word)
-                                                        , min_in_audio_duration_per_word
-                                                        , max_in_audio_duration_per_word
-                                                        , min_out_audio_duration_per_word
-                                                        , max_out_audio_duration_per_word)
-                            start += found * time_per_symbol
-                            end -= (len(word) - (found + len(search_word))) * time_per_symbol
-                        if (end - start) < symbol_duration * len(search_word):
-                            inappropriate_words[search_word] += 1
-                            continue
+                            start += found * symbol_duration
+                            end -= (len(word) - (found + len(search_word))) * symbol_duration
                         segment = AudioSegment.from_wav(filename)
                         segment = segment[start * 1000:end * 1000]
                         out_category_path = os.path.join(out_folder, search_word)
@@ -193,10 +169,12 @@ def process_files_list(files_list, search_words):
                                 count_raw_words[search_word] += 1
                                 testing_list_file.write(text_to_write)
                                 if debug_raw_words:
+                                    segment = AudioSegment.from_wav(filename)
+                                    segment = segment[saved_start * 1000:saved_end * 1000]
                                     out_category_path = os.path.join(out_folder, os.path.join(search_word, 'raw'))
                                     Path(out_category_path).mkdir(parents=True, exist_ok=True)
-                                    shutil.copyfile(out_path
-                                                    , os.path.join(out_category_path, ntpath.basename(out_path)))
+                                    segment.export(os.path.join(out_category_path, ntpath.basename(out_path))
+                                                   , format="wav")
                         else:
                             print('Failed to cut segment for word "%s" from file %s' % (search_word, filename))
 
