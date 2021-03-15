@@ -46,9 +46,11 @@ validation_texts_to_write = {}
 def get_search_words():
     with open("search_words.txt", 'r') as search_words_file:
         ret = {}
-        for word in re.sub(r"[\n\t\s]*", "", search_words_file.read()).split(","):
-            split = word.split('=')
-            ret[str(split[0])] = float(split[1])
+        for word in re.sub(r"[\r\n\t\s]*", "", search_words_file.read()).split(","):
+            if '=' in word:
+                split = word.split('=')
+                if len(split) == 2:
+                    ret[str(split[0]).lower()] = float(split[1])
         return ret
 
 
@@ -74,7 +76,7 @@ def process_txt_files_list(txt_files_list, search_words):
         with open(txt_file, 'r') as file:
             read_file = file.read()
             for search_word in search_words:
-                if search_word in read_file:
+                if search_word in str(read_file).lower():
                     wav_file = txt_file.replace(".txt", ".wav")
                     if not os.path.isfile(wav_file):
                         opus_file = txt_file.replace(".txt", ".opus")
