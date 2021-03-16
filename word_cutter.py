@@ -204,10 +204,10 @@ if not os.path.exists(model_path):
     exit(1)
 
 start_time = datetime.datetime.now()
-walk_dir = sys.argv[1]
+walk_dir = os.path.abspath(sys.argv[1])
 
 print('start time: ' + str(start_time))
-print('walk_dir: ' + os.path.abspath(walk_dir))
+print('walk_dir: ' + walk_dir)
 
 model = Model(model_path)
 
