@@ -29,7 +29,7 @@ validation_list_file_name = 'validation_list.txt'
 
 process_txt_files_threshold = 100000
 process_audio_files_threshold = 100
-max_audio_files_per_word = 10000
+max_audio_files_per_word = 7000
 
 debug_raw_words = True
 
