@@ -154,11 +154,11 @@ def process_files_list(files_list, search_words):
                         saved_start = start
                         saved_end = end
                         symbol_duration = (end - start) / len(word)
+                        if symbol_duration < search_words[search_word]:
+                            inappropriate_words[search_word] += 1
+                            continue
                         is_pure_word = word == search_word
                         if not is_pure_word:
-                            if symbol_duration < search_words[search_word]:
-                                inappropriate_words[search_word] += 1
-                                continue
                             found = str(word).find(search_word)
                             start += found * symbol_duration
                             end -= (len(word) - (found + len(search_word))) * symbol_duration
