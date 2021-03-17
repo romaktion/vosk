@@ -221,7 +221,6 @@ split_txt_files_list = split_list(all_txt_files_list, cpu_amount)
 print('found %d txt files for searching' % len(all_txt_files_list))
 shutil.rmtree(out_folder, ignore_errors=True)
 with futures.ThreadPoolExecutor(max_workers=cpu_amount) as executor:
-    workers_count = 0
     sw = get_search_words()
     for w in sw:
         count_audio_files[w] = 0
@@ -232,10 +231,11 @@ with futures.ThreadPoolExecutor(max_workers=cpu_amount) as executor:
         testing_texts_to_write[w] = []
         validation_texts_to_write[w] = []
     print('collecting and prepare audio files...')
-    last_count_all_txt_files = 0
-    count_all_txt_files = 0
 
     # process txt files 1st pass
+    workers_count = 0
+    last_count_all_txt_files = 0
+    count_all_txt_files = 0
     process_txt_files_list_futures = dict((executor.submit(process_txt_files_list, txt_files_list, sw, 0)
                                            , txt_files_list)
                                           for txt_files_list in split_txt_files_list)
@@ -246,23 +246,23 @@ with futures.ThreadPoolExecutor(max_workers=cpu_amount) as executor:
             workers_count += 1
             if workers_count == cpu_amount:
                 if len(found_files_list) > 0:
-                    workers_count = 0
-                    amount_all_audio_files = 0
-                    last_count_all_audio_files = 0
-                    count_all_audio_files = 0
                     print('audio files prepared (1st pass)')
                     for audio_file in count_audio_files:
                         print('count_audio_files for %s = %d' % (
                             audio_file, count_audio_files[audio_file]))
-                        amount_all_audio_files += count_audio_files[audio_file]
 
                     # process txt files 2nd pass
+                    workers_count = 0
+                    count_all_txt_files = 0
+                    last_count_all_txt_files = 0
+
                     remove_keys = []
                     for audio_file in count_audio_files:
                         if count_audio_files[audio_file] > max_audio_files_per_word:
                             remove_keys.append(audio_file)
                     for key in remove_keys:
                         sw.pop(key)
+
                     process_txt_files_list_futures = dict(
                         (executor.submit(process_txt_files_list, txt_files_list, sw, 1)
                          , txt_files_list)
@@ -275,10 +275,7 @@ with futures.ThreadPoolExecutor(max_workers=cpu_amount) as executor:
                             if workers_count == cpu_amount:
                                 if len(found_files_list) > 0:
                                     split_found_files_list = split_list(found_files_list, cpu_amount)
-                                    workers_count = 0
                                     amount_all_audio_files = 0
-                                    last_count_all_audio_files = 0
-                                    count_all_audio_files = 0
                                     print('audio files prepared (2nd pass)')
                                     for audio_file in count_audio_files:
                                         print('count_audio_files for %s = %d' % (
@@ -286,6 +283,9 @@ with futures.ThreadPoolExecutor(max_workers=cpu_amount) as executor:
                                         amount_all_audio_files += count_audio_files[audio_file]
 
                                     # process audio files
+                                    workers_count = 0
+                                    count_all_audio_files = 0
+                                    last_count_all_audio_files = 0
                                     print('cutting words from audio files...')
                                     process_files_list_futures = dict((executor.submit(process_files_list, found_files_list, sw)
                                                                        , found_files_list)
