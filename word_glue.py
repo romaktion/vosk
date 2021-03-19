@@ -22,23 +22,8 @@ def get_glue_words():
         return ret
 
 
-def perform_glue_words(targets, to_dir):
-    Path(to_dir).mkdir(parents=True, exist_ok=True)
-    combined = AudioSegment.empty()
-    out_name = ""
-    for i, target in enumerate(targets):
-        combined += AudioSegment.from_wav(target)
-        out_name += ntpath.basename(target).replace(".wav", "")
-        if i < len(targets) - 1:
-            out_name += "_"
-        else:
-            out_name += ".wav"
-    combined.export(os.path.join(to_dir, out_name), format="wav")
-
-
 walk_dir = sys.argv[1]
-out_dir = sys.argv[2]
-shutil.rmtree(out_dir, ignore_errors=True)
+out_dir = walk_dir
 files_to_glue_top = []
 glue_words = get_glue_words()
 for glue_word in glue_words:
@@ -55,17 +40,40 @@ for glue_word in glue_words:
         files_to_glue.append(f[:min_files])
     files_to_glue_top.append(files_to_glue)
 
+
+testing_list_file = open(os.path.join(out_dir, "testing_list.txt"), 'a')
+validation_list_file = open(os.path.join(out_dir, "validation_list.txt"), 'a')
+
 # TODO: multithreading
 for idx, files_to_glue in enumerate(files_to_glue_top):
     s = ""
     for gw in glue_words[idx]:
         s += gw
     d = os.path.join(out_dir, s)
+    shutil.rmtree(d, ignore_errors=True)
     count = 0
     min_files = len(files_to_glue[0])
+    half_min_files = min_files / 2
     while count < min_files:
         t = []
         for files in files_to_glue:
             t.append(files[count])
-        perform_glue_words(t, d)
+
+        Path(d).mkdir(parents=True, exist_ok=True)
+        combined = AudioSegment.empty()
+        out_name = ""
+        for i, target in enumerate(t):
+            combined += AudioSegment.from_wav(target)
+            out_name += ntpath.basename(target).replace(".wav", "")
+            if i < len(t) - 1:
+                out_name += "_"
+            else:
+                out_name += ".wav"
+        to_write = s + '/' + out_name + '\n'
+        if count > half_min_files:
+            testing_list_file.write(to_write)
+        else:
+            validation_list_file.write(to_write)
+        combined.export(os.path.join(d, out_name), format="wav")
+
         count += 1
