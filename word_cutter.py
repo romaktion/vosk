@@ -31,7 +31,7 @@ process_txt_files_threshold = 100000
 process_audio_files_threshold = 100
 max_audio_files_per_word = 5000
 
-debug_raw_words = True
+debug_raw_words = False
 
 count_audio_files = {}
 count_words = {}
@@ -154,9 +154,9 @@ def process_files_list(files_list, search_words):
                         saved_start = start
                         saved_end = end
                         symbol_duration = (end - start) / len(word)
-                        if symbol_duration < search_words[search_word]:
+                        inappropriate = symbol_duration < search_words[search_word]
+                        if inappropriate:
                             inappropriate_words[search_word] += 1
-                            continue
                         is_pure_word = word == search_word
                         if not is_pure_word:
                             found = str(word).find(search_word)
@@ -181,10 +181,12 @@ def process_files_list(files_list, search_words):
                             count_words[search_word] += 1
                             if is_pure_word:
                                 count_pure_words[search_word] += 1
-                                validation_texts_to_write[search_word].append(text_to_write)
+                                if not inappropriate:
+                                    validation_texts_to_write[search_word].append(text_to_write)
                             else:
                                 count_raw_words[search_word] += 1
-                                testing_texts_to_write[search_word].append(text_to_write)
+                                if not inappropriate:
+                                    testing_texts_to_write[search_word].append(text_to_write)
                                 if debug_raw_words:
                                     segment = AudioSegment.from_wav(filename)
                                     segment = segment[saved_start * 1000:saved_end * 1000]
