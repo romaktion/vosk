@@ -70,10 +70,11 @@ for idx, files_to_glue in enumerate(files_to_glue_top):
             else:
                 out_name += ".wav"
         to_write = s + '/' + out_name + '\n'
-        if count > half_min_files:
-            testing_list_file.write(to_write)
-        else:
-            validation_list_file.write(to_write)
+        if combined.duration_seconds / len(s) > 0.07:
+            if count > half_min_files:
+                testing_list_file.write(to_write)
+            else:
+                validation_list_file.write(to_write)
         combined.export(os.path.join(d, out_name), format="wav")
 
         count += 1
