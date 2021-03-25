@@ -88,7 +88,7 @@ def process_txt_files_list(txt_files_list, search_words, pass_num):
                 else:
                     print("Unknown pass num!")
                 wav_file = txt_file.replace(".txt", ".wav")
-                if condition and count_audio_files[search_word] < max_audio_files_per_word\
+                if condition and count_audio_files[search_word] < max_audio_files_per_word \
                         and wav_file not in found_files_list:
                     if not os.path.isfile(wav_file):
                         opus_file = txt_file.replace(".txt", ".opus")
@@ -124,7 +124,8 @@ def process_files_list(files_list, search_words):
         if (count_all_audio_files - last_count_all_audio_files) > (process_audio_files_threshold - 1):
             last_count_all_audio_files = count_all_audio_files
             print('%d audio files processed, %d files left...' % (last_count_all_audio_files
-                                                                  , amount_all_audio_files - last_count_all_audio_files))
+                                                                  ,
+                                                                  amount_all_audio_files - last_count_all_audio_files))
         wf = wave.open(filename, "rb")
         if wf.getnchannels() != 1 or wf.getsampwidth() != 2 or wf.getcomptype() != "NONE":
             print("Audio file must be wav format mono PCM.")
@@ -198,133 +199,141 @@ def process_files_list(files_list, search_words):
                             print('Failed to cut segment for word "%s" from file %s' % (search_word, filename))
 
 
-SetLogLevel(0)
+if __name__ == '__main__':
+    SetLogLevel(0)
 
-if not os.path.exists(model_path):
-    print("Please download the model from https://alphacephei.com/vosk/models and unpack as 'model' in the current "
-          "folder.")
-    exit(1)
+    if not os.path.exists(model_path):
+        print("Please download the model from https://alphacephei.com/vosk/models and unpack as 'model' in the current "
+              "folder.")
+        exit(1)
 
-start_time = datetime.datetime.now()
-walk_dir = sys.argv[1]
+    start_time = datetime.datetime.now()
+    walk_dir = sys.argv[1]
 
-print('start time: ' + str(start_time))
-print('walk_dir: ' + os.path.abspath(walk_dir))
+    print('start time: ' + str(start_time))
+    print('walk_dir: ' + os.path.abspath(walk_dir))
 
-model = Model(model_path)
+    model = Model(model_path)
 
-print('txt files collecting...')
-all_txt_files_list = list(glob.iglob(walk_dir + '**/*.txt', recursive=True))
-cpu_amount = multiprocessing.cpu_count() \
-    if len(all_txt_files_list) >= multiprocessing.cpu_count() \
-    else len(all_txt_files_list)
-split_txt_files_list = split_list(all_txt_files_list, cpu_amount)
+    print('txt files collecting...')
+    all_txt_files_list = list(glob.iglob(walk_dir + '**/*.txt', recursive=True))
+    cpu_amount = multiprocessing.cpu_count() \
+        if len(all_txt_files_list) >= multiprocessing.cpu_count() \
+        else len(all_txt_files_list)
+    split_txt_files_list = split_list(all_txt_files_list, cpu_amount)
 
-print('found %d txt files for searching' % len(all_txt_files_list))
-shutil.rmtree(out_folder, ignore_errors=True)
-with futures.ThreadPoolExecutor(max_workers=cpu_amount) as executor:
-    sw = get_search_words()
-    for w in sw:
-        count_audio_files[w] = 0
-        count_words[w] = 0
-        count_raw_words[w] = 0
-        count_pure_words[w] = 0
-        inappropriate_words[w] = 0
-        testing_texts_to_write[w] = []
-        validation_texts_to_write[w] = []
-    print('collecting and prepare audio files...')
+    print('found %d txt files for searching' % len(all_txt_files_list))
+    shutil.rmtree(out_folder, ignore_errors=True)
+    with futures.ThreadPoolExecutor(max_workers=cpu_amount) as executor:
+        sw = get_search_words()
+        for w in sw:
+            count_audio_files[w] = 0
+            count_words[w] = 0
+            count_raw_words[w] = 0
+            count_pure_words[w] = 0
+            inappropriate_words[w] = 0
+            testing_texts_to_write[w] = []
+            validation_texts_to_write[w] = []
+        print('collecting and prepare audio files...')
 
-    # process txt files 1st pass
-    workers_count = 0
-    last_count_all_txt_files = 0
-    count_all_txt_files = 0
-    process_txt_files_list_futures = dict((executor.submit(process_txt_files_list, txt_files_list, sw, 0)
-                                           , txt_files_list)
-                                          for txt_files_list in split_txt_files_list)
-    for process_txt_files_list_future in futures.as_completed(process_txt_files_list_futures):
-        if process_txt_files_list_future.exception() is not None:
-            print('generated an exception: %s' % process_txt_files_list_future.exception())
-        else:
-            workers_count += 1
-            if workers_count == cpu_amount:
-                if len(found_files_list) > 0:
-                    print('audio files prepared (1st pass)')
-                    for audio_file in count_audio_files:
-                        print('count_audio_files for %s = %d' % (
-                            audio_file, count_audio_files[audio_file]))
+        # process txt files 1st pass
+        workers_count = 0
+        last_count_all_txt_files = 0
+        count_all_txt_files = 0
+        process_txt_files_list_futures = dict((executor.submit(process_txt_files_list, txt_files_list, sw, 0)
+                                               , txt_files_list)
+                                              for txt_files_list in split_txt_files_list)
+        for process_txt_files_list_future in futures.as_completed(process_txt_files_list_futures):
+            if process_txt_files_list_future.exception() is not None:
+                print('generated an exception: %s' % process_txt_files_list_future.exception())
+            else:
+                workers_count += 1
+                if workers_count == cpu_amount:
+                    if len(found_files_list) > 0:
+                        print('audio files prepared (1st pass)')
+                        for audio_file in count_audio_files:
+                            print('count_audio_files for %s = %d' % (
+                                audio_file, count_audio_files[audio_file]))
 
-                    # process txt files 2nd pass
-                    workers_count = 0
-                    count_all_txt_files = 0
-                    last_count_all_txt_files = 0
+                        # process txt files 2nd pass
+                        workers_count = 0
+                        count_all_txt_files = 0
+                        last_count_all_txt_files = 0
 
-                    remove_keys = []
-                    for audio_file in count_audio_files:
-                        if count_audio_files[audio_file] > max_audio_files_per_word:
-                            remove_keys.append(audio_file)
-                    for key in remove_keys:
-                        sw.pop(key)
+                        remove_keys = []
+                        for audio_file in count_audio_files:
+                            if count_audio_files[audio_file] > max_audio_files_per_word:
+                                remove_keys.append(audio_file)
+                        for key in remove_keys:
+                            sw.pop(key)
 
-                    process_txt_files_list_futures = dict(
-                        (executor.submit(process_txt_files_list, txt_files_list, sw, 1)
-                         , txt_files_list)
-                        for txt_files_list in split_txt_files_list)
-                    for process_txt_files_list_future2 in futures.as_completed(process_txt_files_list_futures):
-                        if process_txt_files_list_future2.exception() is not None:
-                            print('generated an exception: %s' % process_txt_files_list_future2.exception())
-                        else:
-                            workers_count += 1
-                            if workers_count == cpu_amount:
-                                if len(found_files_list) > 0:
-                                    split_found_files_list = split_list(found_files_list, cpu_amount)
-                                    amount_all_audio_files = 0
-                                    print('audio files prepared (2nd pass)')
-                                    for audio_file in count_audio_files:
-                                        print('count_audio_files for %s = %d' % (
-                                            audio_file, count_audio_files[audio_file]))
-                                        amount_all_audio_files += count_audio_files[audio_file]
+                        process_txt_files_list_futures = dict(
+                            (executor.submit(process_txt_files_list, txt_files_list, sw, 1)
+                             , txt_files_list)
+                            for txt_files_list in split_txt_files_list)
+                        for process_txt_files_list_future2 in futures.as_completed(process_txt_files_list_futures):
+                            if process_txt_files_list_future2.exception() is not None:
+                                print('generated an exception: %s' % process_txt_files_list_future2.exception())
+                            else:
+                                workers_count += 1
+                                if workers_count == cpu_amount:
+                                    if len(found_files_list) > 0:
+                                        split_found_files_list = split_list(found_files_list, cpu_amount)
+                                        amount_all_audio_files = 0
+                                        print('audio files prepared (2nd pass)')
+                                        for audio_file in count_audio_files:
+                                            print('count_audio_files for %s = %d' % (
+                                                audio_file, count_audio_files[audio_file]))
+                                            amount_all_audio_files += count_audio_files[audio_file]
 
-                                    # process audio files
-                                    workers_count = 0
-                                    count_all_audio_files = 0
-                                    last_count_all_audio_files = 0
-                                    print('cutting words from audio files...')
-                                    process_files_list_futures = dict((executor.submit(process_files_list, found_files_list, sw)
-                                                                       , found_files_list)
-                                                                      for found_files_list in split_found_files_list)
-                                    for process_files_list_future in process_files_list_futures:
-                                        if process_files_list_future.exception() is not None:
-                                            print('generated an exception: %s' % process_files_list_future.exception())
-                                        else:
-                                            workers_count += 1
-                                            if workers_count == cpu_amount:
-                                                Path(out_folder).mkdir(parents=True, exist_ok=True)
-                                                testing_list_file = open(os.path.join(out_folder, testing_list_file_name), 'w')
-                                                validation_list_file = open(os.path.join(out_folder, validation_list_file_name), 'w')
-                                                for testing_texts_to_write_list in testing_texts_to_write:
-                                                    for testing_text_to_write in testing_texts_to_write[testing_texts_to_write_list]:
-                                                        testing_list_file.write(testing_text_to_write)
-                                                for validation_texts_to_write_list in validation_texts_to_write:
-                                                    for validation_text_to_write in validation_texts_to_write[validation_texts_to_write_list]:
-                                                        validation_list_file.write(validation_text_to_write)
-                                                testing_list_file.close()
-                                                validation_list_file.close()
-                                                for count_word in count_words:
-                                                    print('count_words for %s = %d' % (
-                                                        count_word, count_words[count_word]))
-                                                for count_raw_word in count_raw_words:
-                                                    print('count_raw_words for %s = %d' % (
-                                                        count_raw_word, count_raw_words[count_raw_word]))
-                                                for count_pure_word in count_pure_words:
-                                                    print('count_pure_words for %s = %d' % (
-                                                        count_pure_word, count_pure_words[count_pure_word]))
-                                                for inappropriate_word in inappropriate_words:
-                                                    print('inappropriate_words for %s = %d' % (
-                                                        inappropriate_word, inappropriate_words[inappropriate_word]))
-                                                end_time = datetime.datetime.now()
-                                                print('end time: ' + str(end_time))
-                                                delta = end_time - start_time
-                                                print('all done in %d minutes %d seconds!'
-                                                      % (int(delta.seconds / 60), delta.seconds))
-                else:
-                    print('audio files not found!')
+                                        # process audio files
+                                        workers_count = 0
+                                        count_all_audio_files = 0
+                                        last_count_all_audio_files = 0
+                                        print('cutting words from audio files...')
+                                        process_files_list_futures = dict(
+                                            (executor.submit(process_files_list, found_files_list, sw)
+                                             , found_files_list)
+                                            for found_files_list in split_found_files_list)
+                                        for process_files_list_future in process_files_list_futures:
+                                            if process_files_list_future.exception() is not None:
+                                                print(
+                                                    'generated an exception: %s' % process_files_list_future.exception())
+                                            else:
+                                                workers_count += 1
+                                                if workers_count == cpu_amount:
+                                                    Path(out_folder).mkdir(parents=True, exist_ok=True)
+                                                    testing_list_file = open(
+                                                        os.path.join(out_folder, testing_list_file_name), 'w')
+                                                    validation_list_file = open(
+                                                        os.path.join(out_folder, validation_list_file_name), 'w')
+                                                    for testing_texts_to_write_list in testing_texts_to_write:
+                                                        for testing_text_to_write in testing_texts_to_write[
+                                                            testing_texts_to_write_list]:
+                                                            testing_list_file.write(testing_text_to_write)
+                                                    for validation_texts_to_write_list in validation_texts_to_write:
+                                                        for validation_text_to_write in validation_texts_to_write[
+                                                            validation_texts_to_write_list]:
+                                                            validation_list_file.write(validation_text_to_write)
+                                                    testing_list_file.close()
+                                                    validation_list_file.close()
+                                                    for count_word in count_words:
+                                                        print('count_words for %s = %d' % (
+                                                            count_word, count_words[count_word]))
+                                                    for count_raw_word in count_raw_words:
+                                                        print('count_raw_words for %s = %d' % (
+                                                            count_raw_word, count_raw_words[count_raw_word]))
+                                                    for count_pure_word in count_pure_words:
+                                                        print('count_pure_words for %s = %d' % (
+                                                            count_pure_word, count_pure_words[count_pure_word]))
+                                                    for inappropriate_word in inappropriate_words:
+                                                        print('inappropriate_words for %s = %d' % (
+                                                            inappropriate_word,
+                                                            inappropriate_words[inappropriate_word]))
+                                                    end_time = datetime.datetime.now()
+                                                    print('end time: ' + str(end_time))
+                                                    delta = end_time - start_time
+                                                    print('all done in %d minutes %d seconds!'
+                                                          % (int(delta.seconds / 60), delta.seconds))
+                    else:
+                        print('audio files not found!')
