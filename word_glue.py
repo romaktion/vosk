@@ -14,9 +14,9 @@ from pydub import AudioSegment
 def get_glue_words():
     with open("glue_words.txt", 'r') as glue_words_file:
         ret = []
-        for word in re.sub(r"[\r\n\t\s]*", "", glue_words_file.read()).split(","):
-            if '-' in word:
-                split = word.split('-')
+        for w in re.sub(r"[\r\n\t\s]*", "", glue_words_file.read()).split(","):
+            if '-' in w:
+                split = w.split('-')
                 if len(split) > 1:
                     ret.append(split)
         return ret
