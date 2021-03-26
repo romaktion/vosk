@@ -14,8 +14,8 @@ import word_cutter
 
 def convert(files_list):
     for f in files_list:
-        process = subprocess.run(["ffmpeg", "-i", f, "-ab", "160k", "-ac", "1", "-ar", "16000"
-                                     , os.path.join(out_dir, "conv_" + ntpath.basename(f))]
+        process = subprocess.run(["ffmpeg", "-f", "s16le", "-i", f, "-ab", "160k", "-ac", "1", "-ar", "16000"
+                                     , os.path.join(out_dir, "conv_" + ntpath.basename(f).replace(".raw", ".wav"))]
                                  , stderr=subprocess.DEVNULL
                                  , stdout=subprocess.DEVNULL
                                  , stdin=subprocess.PIPE)
@@ -27,7 +27,7 @@ walk_dir = sys.argv[1]
 out_dir = sys.argv[2]
 Path(out_dir).mkdir(parents=True, exist_ok=True)
 
-files = list(glob.iglob(walk_dir + '**/*.wav', recursive=True))
+files = list(glob.iglob(walk_dir + '**/*.raw', recursive=True))
 if len(files) == 0:
     print("files is empty!")
     exit(1)
