@@ -81,10 +81,11 @@ def process_txt_files_list(txt_files_list, search_words, pass_num):
         with open(txt_file, 'r') as file:
             read_file = file.read()
             for search_word in search_words:
+                read_file_lower = read_file.lower()
                 if pass_num == 0:
-                    condition = find_whole_word(search_word)(read_file) is not None
+                    condition = find_whole_word(search_word)(read_file_lower) is not None
                 elif pass_num == 1:
-                    condition = search_word in read_file
+                    condition = search_word in read_file_lower
                 else:
                     print("Unknown pass num!")
                 wav_file = txt_file.replace(".txt", ".wav")
