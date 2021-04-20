@@ -14,8 +14,10 @@ import word_cutter
 
 def convert(files_list):
     for f in files_list:
-        process = subprocess.run(["ffmpeg", "-i", f, "-ab", "160k", "-ac", "1", "-ar", "16000"
-                                     , os.path.join(out_dir, "conv_" + ntpath.basename(f))]
+        out_file = os.path.join(out_dir, os.path.relpath(f, walk_dir))
+        Path(ntpath.dirname(out_file)).mkdir(parents=True, exist_ok=True)
+        process = subprocess.run(["ffmpeg", "-f", "s16le", "-i", f, "-ac", "1", "-ar", "8000", "-acodec", "pcm_s16le"
+                                     , out_file]
                                  , stderr=subprocess.DEVNULL
                                  , stdout=subprocess.DEVNULL
                                  , stdin=subprocess.PIPE)
