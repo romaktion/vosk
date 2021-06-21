@@ -133,6 +133,7 @@ def process_files_list(files_list, search_words):
             exit(1)
 
         rec = KaldiRecognizer(model, wf.getframerate())
+        rec.SetWords(True)
 
         while True:
             data = wf.readframes(4000)
